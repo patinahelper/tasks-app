@@ -25,10 +25,14 @@ def chat_view(request):
     # Reverse so oldest first for display
     messages = list(reversed(messages))
     
+    # Get last message ID for polling
+    last_message_id = messages[-1].id if messages else 0
+    
     context = {
         'messages': messages,
         'form': form,
         'unread_count': ChatMessage.objects.filter(sender='agent', is_read=False).count(),
+        'last_message_id': last_message_id,
     }
     return render(request, 'tasks/chat.html', context)
 
