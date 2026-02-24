@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block title %}Kanban Board - Task Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kanban-container {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .kanban-board {
+        display: flex;
+        gap: 1rem;
+        min-width: max-content;
+    }
+    
+    .kanban-column {
+        width: 300px;
+        flex-shrink: 0;
+    }
+    
+    .task-count {
+        background: #dee2e6;
+        padding: 0.15rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col d-flex justify-content-between align-items-center">
+        <div>
+            <h1>Kanban Board</h1>
+            <p class="text-muted mb-0">Drag and drop tasks between columns</p>
+        </div>
+        <div>
+            <form method="get" class="d-flex gap-2">
+                <select name="project" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                    <option value="">All Projects</option>
+                    {% for project in projects %}
+                    <option value="{{ project.pk }}" {% if current_project == project.pk %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <a href="{% url 'task_create' %}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-lg"></i> New Task
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="kanban-container">
+    <div class="kanban-board">
+        {% for column in columns %}
+        <div class="kanban-column" data-status="{{ column.id }}">
+            <div class="kanban-column-header d-flex justify-content-between align-items-center">
+                <span>
+                    {% if column.id == 'backlog' %}<i class="bi bi-archive"></i>{% endif %}
+                    {% if column.id == 'todo' %}<i class="bi bi-circle"></i>{% endif %}
+                    {% if column.id == 'in_progress' %}<i class="bi bi-arrow-repeat"></i>{% endif %}
+                    {% if column.id == 'review' %}<i class="bi bi-eye"></i>{% endif %}
+                    {% if column.id == 'done' %}<i class="bi bi-check-circle"></i>{% endif %}
+                    {{ column.name }}
+                </span>
+                <span class="task-count">{{ column.tasks.count }}</span>
+            </div>
+            <div class="kanban-tasks" data-status="{{ column.id }}">
+                {% for task in column.tasks %}
+                <div class="kanban-card" draggable="true" data-task-id="{{ task.pk }}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0" style="font-size: 0.95rem;">{{ task.title }}</h6>
+                        <span class="badge {{ task.priority_class }} priority-badge">{{ task.priority_label }}</span>
+                    </div>
+                    
+                    {% if task.description %}
+                    <p class="text-muted small mb-2" style="white-space: normal;">
+                        {{ task.description|truncatewords:15 }}
+                    </p>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if task.project %}
+                            <span class="project-badge" style="background-color: {{ task.project.color }}20; color: {{ task.project.color }};">
+                                {{ task.project.name|truncatechars:12 }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="task-meta">
+                            {% if task.due_date %}
+                            <span class="{% if task.due_date < today %}text-danger{% endif %}">
+                                <i class="bi bi-calendar"></i> {{ task.due_date|date:"M d" }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-2 pt-2 border-top">
+                        <a href="{% url 'task_detail' task.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{% url 'task_update' task.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center text-muted py-4">
+                    <small>No tasks</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Drag and Drop functionality
+    let draggedCard = null;
+
+    document.querySelectorAll('.kanban-card').forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+            draggedCard = card;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+            draggedCard = null;
+            document.querySelectorAll('.kanban-column').forEach(col => {
+                col.classList.remove('drag-over');
+            });
+        });
+    });
+
+    document.querySelectorAll('.kanban-tasks').forEach(column => {
+        column.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            column.closest('.kanban-column').classList.add('drag-over');
+        });
+
+        column.addEventListener('dragleave', (e) => {
+            column.closest('.kanban-column').classList.remove('drag-over');
+        });
+
+        column.addEventListener('drop', (e) => {
+            e.preventDefault();
+            column.closest('.kanban-column').classList.remove('drag-over');
+            
+            if (draggedCard) {
+                const newStatus = column.dataset.status;
+                const taskId = draggedCard.dataset.taskId;
+                
+                // Move card visually
+                column.appendChild(draggedCard);
+                
+                // Update counts
+                updateColumnCounts();
+                
+                // Send to server
+                fetch('/task/move/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        task_id: taskId,
+                        status: newStatus
+                    })
+                });
+            }
+        });
+    });
+
+    function updateColumnCounts() {
+        document.querySelectorAll('.kanban-tasks').forEach(column => {
+            const count = column.querySelectorAll('.kanban-card').length;
+            const header = column.closest('.kanban-column').querySelector('.task-count');
+            header.textContent = count;
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

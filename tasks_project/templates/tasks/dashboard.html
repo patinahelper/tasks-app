@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Task Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Dashboard</h1>
+        <p class="text-muted">Overview of your tasks and projects</p>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+    <div class="col-md">
+        <div class="card stat-card bg-light">
+            <div class="stat-number text-primary">{{ total_tasks }}</div>
+            <div class="text-muted">Total Tasks</div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card stat-card bg-warning bg-opacity-10">
+            <div class="stat-number text-warning">{{ tasks_by_status.in_progress }}</div>
+            <div class="text-muted">In Progress</div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card stat-card bg-info bg-opacity-10">
+            <div class="stat-number text-info">{{ tasks_by_status.todo }}</div>
+            <div class="text-muted">To Do</div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card stat-card bg-success bg-opacity-10">
+            <div class="stat-number text-success">{{ tasks_by_status.done }}</div>
+            <div class="text-muted">Completed</div>
+        </div>
+    </div>
+    <div class="col-md">
+        <div class="card stat-card bg-danger bg-opacity-10">
+            <div class="stat-number text-danger">{{ urgent_tasks|length }}</div>
+            <div class="text-muted">Urgent</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Urgent Tasks -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Urgent Tasks</h5>
+            </div>
+            <div class="card-body">
+                {% if urgent_tasks %}
+                    <div class="list-group list-group-flush">
+                        {% for task in urgent_tasks %}
+                        <a href="{% url 'task_detail' task.pk %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ task.title }}</h6>
+                                {% if task.due_date %}
+                                <small class="text-danger">{{ task.due_date|date:"M d" }}</small>
+                                {% endif %}
+                            </div>
+                            {% if task.project %}
+                            <small class="project-badge" style="background-color: {{ task.project.color }}20; color: {{ task.project.color }};">
+                                {{ task.project.name }}
+                            </small>
+                            {% endif %}
+                            <small class="badge {{ task.priority_class }}">{{ task.priority_label }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No urgent tasks! 🎉</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recently Updated</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_tasks %}
+                    <div class="list-group list-group-flush">
+                        {% for task in recent_tasks %}
+                        <a href="{% url 'task_detail' task.pk %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ task.title }}</h6>
+                                <small class="text-muted">{{ task.updated_at|timesince }} ago</small>
+                            </div>
+                            <small class="badge bg-secondary">{{ task.get_status_display }}</small>
+                            {% if task.project %}
+                            <small class="project-badge" style="background-color: {{ task.project.color }}20; color: {{ task.project.color }};">
+                                {{ task.project.name }}
+                            </small>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No recent activity</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Projects -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-folder"></i> Active Projects</h5>
+        <a href="{% url 'project_create' %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-lg"></i> New Project
+        </a>
+    </div>
+    <div class="card-body">
+        {% if projects %}
+            <div class="row g-3">
+                {% for project in projects %}
+                <div class="col-md-4">
+                    <div class="card h-100" style="border-left: 4px solid {{ project.color }};">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ project.name }}</h6>
+                            <p class="card-text text-muted small">{{ project.tasks.count }} tasks</p>
+                            <a href="{% url 'project_detail' project.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">No active projects. <a href="{% url 'project_create' %}">Create one</a>.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

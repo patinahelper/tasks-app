@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Task Manager{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --kanban-column-bg: #f8f9fa;
+            --kanban-card-bg: #ffffff;
+        }
+        
+        .kanban-column {
+            background: var(--kanban-column-bg);
+            border-radius: 8px;
+            min-height: 400px;
+            padding: 1rem;
+        }
+        
+        .kanban-column-header {
+            font-weight: 600;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .kanban-card {
+            background: var(--kanban-card-bg);
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            cursor: grab;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        
+        .kanban-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .kanban-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        
+        .kanban-column.drag-over {
+            background: #e9ecef;
+        }
+        
+        .priority-badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+        }
+        
+        .task-meta {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+        }
+        
+        .stat-card {
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .project-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="bi bi-kanban"></i> Task Manager
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard' %}">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'chat' %}">
+                            <i class="bi bi-chat-dots"></i> Chat with BMO
+                            <span id="chat-badge" class="badge bg-danger ms-1" style="display: none;">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'kanban' %}">
+                            <i class="bi bi-kanban"></i> Kanban Board
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'task_list' %}">
+                            <i class="bi bi-list-task"></i> All Tasks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'project_list' %}">
+                            <i class="bi bi-folder"></i> Projects
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="btn btn-light btn-sm" href="{% url 'task_create' %}">
+                            <i class="bi bi-plus-lg"></i> New Task
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-4">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Chat polling for unread messages
+        function pollChatBadge() {
+            fetch('/chat/poll/')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('chat-badge');
+                    if (badge && data.unread_count > 0) {
+                        badge.textContent = data.unread_count;
+                        badge.style.display = 'inline';
+                    } else if (badge) {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(err => console.log('Poll error:', err));
+        }
+        
+        // Poll every 15 seconds
+        setInterval(pollChatBadge, 15000);
+        pollChatBadge(); // Initial poll
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

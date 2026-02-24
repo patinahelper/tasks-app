@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+
+{% block title %}Chat with BMO - Task Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        height: calc(100vh - 200px);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .chat-message {
+        margin-bottom: 1rem;
+        max-width: 80%;
+    }
+    
+    .chat-message.user {
+        margin-left: auto;
+        text-align: right;
+    }
+    
+    .chat-message.agent {
+        margin-right: auto;
+    }
+    
+    .chat-bubble {
+        display: inline-block;
+        padding: 0.75rem 1rem;
+        border-radius: 1rem;
+        word-wrap: break-word;
+    }
+    
+    .chat-message.user .chat-bubble {
+        background: #0d6efd;
+        color: white;
+        border-bottom-right-radius: 0.25rem;
+    }
+    
+    .chat-message.agent .chat-bubble {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-bottom-left-radius: 0.25rem;
+    }
+    
+    .chat-meta {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .chat-sender {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .chat-message.user .chat-sender {
+        color: #0d6efd;
+    }
+    
+    .chat-message.agent .chat-sender {
+        color: #198754;
+    }
+    
+    .chat-input-area {
+        padding-top: 1rem;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .typing-indicator {
+        display: none;
+        padding: 0.5rem 1rem;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .typing-indicator.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col">
+        <h1><i class="bi bi-chat-dots"></i> Chat with BMO</h1>
+        <p class="text-muted">Messages are checked every 15 seconds. I'll see your message and reply when I poll.</p>
+    </div>
+</div>
+
+<div class="chat-container mt-3">
+    <div class="chat-messages" id="chat-messages">
+        {% for message in messages %}
+        <div class="chat-message {{ message.sender }}" data-id="{{ message.id }}">
+            <div class="chat-sender">
+                {% if message.sender == 'user' %}You{% else %}BMO{% endif %}
+            </div>
+            <div class="chat-bubble">{{ message.content|linebreaksbr }}</div>
+            <div class="chat-meta">{{ message.timestamp|date:"H:i" }}</div>
+        </div>
+        {% empty %}
+        <div class="text-center text-muted py-5">
+            <p>No messages yet. Say hello!</p>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="typing-indicator" id="typing-indicator">
+        <i class="bi bi-three-dots"></i> BMO is thinking...
+    </div>
+    
+    <div class="chat-input-area">
+        <form id="chat-form" method="post">
+            {% csrf_token %}
+            <div class="input-group">
+                <textarea 
+                    name="content" 
+                    id="chat-input" 
+                    class="form-control" 
+                    rows="2" 
+                    placeholder="Type your message to BMO..."
+                    required
+                ></textarea>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-send"></i> Send
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let lastMessageId = {{ messages|last|default:0|yesno:"0," }};
+    {% if messages %}
+    lastMessageId = {{ messages.last.id }};
+    {% endif %}
+    
+    // Scroll to bottom on load
+    const messagesContainer = document.getElementById('chat-messages');
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Handle form submission with AJAX
+    document.getElementById('chat-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const input = document.getElementById('chat-input');
+        const content = input.value.trim();
+        
+        if (!content) return;
+        
+        // Add user message to UI immediately
+        addMessage({
+            id: 'temp-' + Date.now(),
+            content: content,
+            sender: 'user',
+            timestamp: new Date().toISOString()
+        });
+        
+        // Clear input
+        input.value = '';
+        
+        // Show typing indicator
+        document.getElementById('typing-indicator').classList.add('active');
+        
+        // Send to server
+        fetch('/chat/api/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ message: content })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Start polling for response
+                pollForResponse();
+            } else {
+                alert('Error sending message: ' + data.error);
+                document.getElementById('typing-indicator').classList.remove('active');
+            }
+        })
+        .catch(err => {
+            console.error('Send error:', err);
+            document.getElementById('typing-indicator').classList.remove('active');
+        });
+    });
+    
+    // Poll for new messages
+    function pollForResponse() {
+        let attempts = 0;
+        const maxAttempts = 40; // 2 minutes at 3 second intervals
+        
+        const interval = setInterval(() => {
+            attempts++;
+            
+            fetch('/chat/poll/?last_id=' + lastMessageId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.messages && data.messages.length > 0) {
+                        // Add new messages
+                        data.messages.forEach(msg => {
+                            if (msg.id > lastMessageId) {
+                                addMessage(msg);
+                                lastMessageId = msg.id;
+                            }
+                        });
+                        
+                        // Check if BMO responded
+                        const hasAgentResponse = data.messages.some(m => m.sender === 'agent');
+                        if (hasAgentResponse) {
+                            clearInterval(interval);
+                            document.getElementById('typing-indicator').classList.remove('active');
+                        }
+                    }
+                })
+                .catch(err => console.log('Poll error:', err));
+            
+            if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                document.getElementById('typing-indicator').classList.remove('active');
+            }
+        }, 3000); // Check every 3 seconds
+    }
+    
+    function addMessage(msg) {
+        const container = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = 'chat-message ' + msg.sender;
+        div.setAttribute('data-id', msg.id);
+        
+        const time = new Date(msg.timestamp).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+        
+        div.innerHTML = `
+            <div class="chat-sender">${msg.sender === 'user' ? 'You' : 'BMO'}</div>
+            <div class="chat-bubble">${msg.content.replace(/\n/g, '<br>')}</div>
+            <div class="chat-meta">${time}</div>
+        `;
+        
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Allow Enter to send (Shift+Enter for new line)
+    document.getElementById('chat-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+        }
+    });
+</script>
+{% endblock %}
