@@ -20,8 +20,10 @@ def chat_view(request):
     else:
         form = ChatMessageForm()
     
-    # Get recent messages (last 50)
-    messages = ChatMessage.objects.all()[:50]
+    # Get recent messages (last 50) - ordered by timestamp
+    messages = ChatMessage.objects.order_by('-timestamp')[:50]
+    # Reverse so oldest first for display
+    messages = list(reversed(messages))
     
     context = {
         'messages': messages,
