@@ -35,19 +35,19 @@
 <div class="row g-3 mb-4">
     <div class="col-md">
         <div class="card stat-card bg-light">
-            <div class="stat-number">{{ project.tasks.count }}</div>
+            <div class="stat-number">{{ total_tasks }}</div>
             <div class="text-muted">Total Tasks</div>
         </div>
     </div>
     <div class="col-md">
         <div class="card stat-card bg-warning bg-opacity-10">
-            <div class="stat-number text-warning">{{ project.tasks.filter.status='in_progress'|length }}</div>
+            <div class="stat-number text-warning">{{ in_progress_count }}</div>
             <div class="text-muted">In Progress</div>
         </div>
     </div>
     <div class="col-md">
         <div class="card stat-card bg-success bg-opacity-10">
-            <div class="stat-number text-success">{{ project.tasks.filter.status='done'|length }}</div>
+            <div class="stat-number text-success">{{ completed_count }}</div>
             <div class="text-muted">Completed</div>
         </div>
     </div>

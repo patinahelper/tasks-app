@@ -133,8 +133,14 @@ class ProjectDetailView(DetailView):
     template_name = 'tasks/project_detail.html'
     
     def get_context_data(self, **kwargs):
+        from django.utils import timezone
         context = super().get_context_data(**kwargs)
         context['tasks'] = self.object.tasks.order_by('-priority', 'due_date')
+        context['today'] = timezone.now().date()
+        # Task counts for stats
+        context['total_tasks'] = self.object.tasks.count()
+        context['in_progress_count'] = self.object.tasks.filter(status='in_progress').count()
+        context['completed_count'] = self.object.tasks.filter(status='done').count()
         return context
 
 class ProjectCreateView(CreateView):
@@ -154,27 +160,55 @@ class TaskListView(ListView):
     template_name = 'tasks/task_list.html'
     context_object_name = 'tasks'
     paginate_by = 20
-    
+
     def get_queryset(self):
+        from django.utils import timezone
+        from datetime import timedelta
         queryset = super().get_queryset()
         status = self.request.GET.get('status')
         project = self.request.GET.get('project')
         priority = self.request.GET.get('priority')
-        
+        due = self.request.GET.get('due')
+
         if status:
             queryset = queryset.filter(status=status)
         if project:
             queryset = queryset.filter(project_id=project)
         if priority:
             queryset = queryset.filter(priority=priority)
-        
+
+        # Due date filters
+        today = timezone.now().date()
+        if due == 'today':
+            queryset = queryset.filter(due_date=today)
+        elif due == 'week':
+            week_end = today + timedelta(days=7)
+            queryset = queryset.filter(due_date__gte=today, due_date__lte=week_end)
+        elif due == 'overdue':
+            queryset = queryset.filter(due_date__lt=today, status__in=['backlog', 'todo', 'in_progress'])
+
         return queryset
-    
+
     def get_context_data(self, **kwargs):
+        from django.utils import timezone
+        from datetime import timedelta
         context = super().get_context_data(**kwargs)
         context['projects'] = Project.objects.filter(is_active=True)
         context['status_choices'] = Task.STATUS_CHOICES
         context['priority_choices'] = Task.PRIORITY_CHOICES
+        context['today'] = timezone.now().date()
+        context['week_end'] = timezone.now().date() + timedelta(days=7)
+
+        # Due date counts for filter badges
+        today = timezone.now().date()
+        week_end = today + timedelta(days=7)
+        base_qs = Task.objects.exclude(status='done')
+        context['due_today_count'] = base_qs.filter(due_date=today).count()
+        context['due_this_week_count'] = base_qs.filter(due_date__gte=today, due_date__lte=week_end).count()
+        context['overdue_count'] = base_qs.filter(due_date__lt=today).count()
+
+        # Current filter
+        context['current_due'] = self.request.GET.get('due', '')
         return context
 
 class TaskDetailView(DetailView):

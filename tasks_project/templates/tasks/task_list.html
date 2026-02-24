@@ -14,10 +14,36 @@
     </div>
 </div>
 
+<!-- Due Date Quick Filters -->
+<div class="row g-2 mb-3">
+    <div class="col-auto">
+        <a href="?due=today{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.project %}&project={{ request.GET.project }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}" 
+           class="btn btn-sm {% if current_due == 'today' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="bi bi-calendar-check"></i> Due Today
+            {% if due_today_count %}<span class="badge bg-danger ms-1">{{ due_today_count }}</span>{% endif %}
+        </a>
+    </div>
+    <div class="col-auto">
+        <a href="?due=week{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.project %}&project={{ request.GET.project }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}" 
+           class="btn btn-sm {% if current_due == 'week' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="bi bi-calendar-week"></i> Due This Week
+            {% if due_this_week_count %}<span class="badge bg-warning ms-1">{{ due_this_week_count }}</span>{% endif %}
+        </a>
+    </div>
+    <div class="col-auto">
+        <a href="?due=overdue{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.project %}&project={{ request.GET.project }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}" 
+           class="btn btn-sm {% if current_due == 'overdue' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+            <i class="bi bi-exclamation-triangle"></i> Overdue
+            {% if overdue_count %}<span class="badge bg-dark ms-1">{{ overdue_count }}</span>{% endif %}
+        </a>
+    </div>
+</div>
+
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
+            {% if current_due %}<input type="hidden" name="due" value="{{ current_due }}">{% endif %}
             <div class="col-md-3">
                 <select name="status" class="form-select" onchange="this.form.submit()">
                     <option value="">All Statuses</option>
@@ -125,17 +151,17 @@
     <ul class="pagination justify-content-center">
         {% if page_obj.has_previous %}
         <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.project %}&project={{ request.GET.project }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}">Previous</a>
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.project %}&project={{ request.GET.project }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}{% if request.GET.due %}&due={{ request.GET.due }}{% endif %}">Previous</a>
         </li>
         {% endif %}
-        
+
         <li class="page-item active">
             <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
         </li>
-        
+
         {% if page_obj.has_next %}
         <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.project %}&project={{ request.GET.project }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}">Next</a>
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.project %}&project={{ request.GET.project }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}{% if request.GET.due %}&due={{ request.GET.due }}{% endif %}">Next</a>
         </li>
         {% endif %}
     </ul>
