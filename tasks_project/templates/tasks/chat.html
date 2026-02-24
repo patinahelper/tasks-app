@@ -140,10 +140,7 @@
 
 {% block extra_js %}
 <script>
-    let lastMessageId = {{ messages|last|default:0|yesno:"0," }};
-    {% if messages %}
-    lastMessageId = {{ messages.last.id }};
-    {% endif %}
+    let lastMessageId = {% if messages %}{{ messages.last.id }}{% else %}0{% endif %};
     
     // Scroll to bottom on load
     const messagesContainer = document.getElementById('chat-messages');
