@@ -22,11 +22,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Run collectstatic (from tasks_project directory but with correct Python path)
-RUN cd /app/tasks_project && PYTHONPATH=/app/tasks_project python manage.py collectstatic --noinput
+# Run collectstatic from /app (not from inside tasks_project)
+# PYTHONPATH ensures tasks_project is found
+RUN PYTHONPATH=/app/tasks_project python tasks_project/manage.py collectstatic --noinput
 
 # Expose port
 EXPOSE 8000
 
-# Start command
-CMD cd /app/tasks_project && PYTHONPATH=/app/tasks_project gunicorn tasks_project.wsgi:application --bind 0.0.0.0:$PORT
+# Start command - run from /app, not from inside tasks_project
+CMD PYTHONPATH=/app/tasks_project python tasks_project/manage.py migrate && \
+    PYTHONPATH=/app/tasks_project gunicorn --chdir tasks_project tasks_project.wsgi:application --bind 0.0.0.0:$PORT
