@@ -368,9 +368,14 @@ def weekly_report(request):
         start_date = end_date - timedelta(days=days)
     
     # Tasks completed this week
+    # Use timezone-aware datetime comparison instead of just date
+    from django.utils import timezone
+    start_datetime = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
+    end_datetime = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time()))
+    
     completed_tasks = Task.objects.filter(
-        completed_at__date__gte=start_date,
-        completed_at__date__lte=end_date
+        completed_at__gte=start_datetime,
+        completed_at__lte=end_datetime
     ).select_related('project').order_by('project__category', '-completed_at')
     
     # Tasks in progress
@@ -439,10 +444,13 @@ def weekly_report_email(request):
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days)
     
-    # Same queries as weekly_report
+    # Same queries as weekly_report - use timezone-aware datetime
+    start_datetime = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
+    end_datetime = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time()))
+    
     completed_tasks = Task.objects.filter(
-        completed_at__date__gte=start_date,
-        completed_at__date__lte=end_date
+        completed_at__gte=start_datetime,
+        completed_at__lte=end_datetime
     ).select_related('project').order_by('project__category', '-completed_at')
     
     in_progress_tasks = Task.objects.filter(
@@ -568,10 +576,13 @@ def weekly_report_word(request):
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days)
     
-    # Get data
+    # Get data - use timezone-aware datetime
+    start_datetime = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
+    end_datetime = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time()))
+    
     completed_tasks = Task.objects.filter(
-        completed_at__date__gte=start_date,
-        completed_at__date__lte=end_date
+        completed_at__gte=start_datetime,
+        completed_at__lte=end_datetime
     ).select_related('project').order_by('project__category', '-completed_at')
     
     in_progress_tasks = Task.objects.filter(
