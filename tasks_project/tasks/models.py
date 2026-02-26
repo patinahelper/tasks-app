@@ -96,6 +96,19 @@ class Task(models.Model):
         return dict(self.PRIORITY_CHOICES).get(self.priority, 'Medium')
 
 
+class TaskUpdate(models.Model):
+    """Progress updates/notes for ongoing tasks"""
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='updates')
+    content = models.TextField(help_text='Update or progress note')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Update on {self.task.title} - {self.created_at.strftime('%d %b %Y')}"
+
+
 class Incident(models.Model):
     SEVERITY_CHOICES = [
         (1, 'Low'),

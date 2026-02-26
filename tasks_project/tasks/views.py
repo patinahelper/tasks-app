@@ -5,8 +5,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 import json
-from .models import Project, Task, ChatMessage, Incident
-from .forms import TaskForm, ProjectForm, ChatMessageForm, IncidentForm
+from .models import Project, Task, ChatMessage, Incident, TaskUpdate
+from .forms import TaskForm, ProjectForm, ChatMessageForm, IncidentForm, TaskUpdateForm
 
 def chat_view(request):
     """Chat interface with BMO"""
@@ -214,6 +214,12 @@ class TaskListView(ListView):
 class TaskDetailView(DetailView):
     model = Task
     template_name = 'tasks/task_detail.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['update_form'] = TaskUpdateForm()
+        context['updates'] = self.object.updates.all()
+        return context
 
 class TaskCreateView(CreateView):
     model = Task
@@ -233,6 +239,28 @@ class TaskDeleteView(DeleteView):
     model = Task
     success_url = reverse_lazy('kanban')
     template_name = 'tasks/task_confirm_delete.html'
+
+
+class TaskUpdateCreateView(CreateView):
+    model = TaskUpdate
+    form_class = TaskUpdateForm
+    template_name = 'tasks/taskupdate_form.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        self.task = get_object_or_404(Task, pk=self.kwargs['task_pk'])
+        return super().dispatch(request, *args, **kwargs)
+    
+    def form_valid(self, form):
+        form.instance.task = self.task
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse_lazy('task_detail', kwargs={'pk': self.task.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['task'] = self.task
+        return context
 
 
 # ========== Weekly Report Views ==========
