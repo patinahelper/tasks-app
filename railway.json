@@ -4,11 +4,5 @@
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile"
   },
-  "deploy": {
-    "startCommand": "cd /app/tasks_project && PYTHONPATH=/app/tasks_project python manage.py migrate && PYTHONPATH=/app/tasks_project gunicorn tasks_project.wsgi:application --bind 0.0.0.0:$PORT",
-    "healthcheckPath": "/",
-    "healthcheckTimeout": 100,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
+  "deploy": {}
 }

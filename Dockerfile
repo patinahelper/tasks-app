@@ -22,12 +22,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Run collectstatic - PYTHONPATH=/app allows 'tasks_project' to be imported
+# Run collectstatic
 RUN python tasks_project/manage.py collectstatic --noinput
 
 # Expose port
 EXPOSE 8000
 
-# Start command
-CMD python tasks_project/manage.py migrate && \
-    gunicorn --chdir tasks_project tasks_project.wsgi:application --bind 0.0.0.0:$PORT
+# Start command - migrate then run server
+CMD sh -c "python tasks_project/manage.py migrate && gunicorn --chdir tasks_project tasks_project.wsgi:application --bind 0.0.0.0:$PORT"
