@@ -2,10 +2,10 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "cd tasks_project && python manage.py collectstatic --noinput && python manage.py migrate"
+    "buildCommand": "PYTHONPATH=/app/tasks_project:$PYTHONPATH python tasks_project/manage.py collectstatic --noinput && PYTHONPATH=/app/tasks_project:$PYTHONPATH python tasks_project/manage.py migrate"
   },
   "deploy": {
-    "startCommand": "cd tasks_project && gunicorn tasks_project.wsgi:application --bind 0.0.0.0:$PORT",
+    "startCommand": "PYTHONPATH=/app/tasks_project:$PYTHONPATH gunicorn --chdir tasks_project tasks_project.wsgi:application --bind 0.0.0.0:$PORT",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
