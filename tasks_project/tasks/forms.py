@@ -1,5 +1,5 @@
 from django import forms
-from .models import Project, Task, ChatMessage, Incident, TaskUpdate
+from .models import Project, Task, ChatMessage, Incident, TaskUpdate, SubTask
 
 class ChatMessageForm(forms.ModelForm):
     class Meta:
@@ -53,4 +53,13 @@ class TaskUpdateForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Add a progress update or note...'
             }),
+        }
+
+
+class SubTaskForm(forms.ModelForm):
+    class Meta:
+        model = SubTask
+        fields = ['title', 'assigned_to', 'due_date', 'status']
+        widgets = {
+            'due_date': forms.DateInput(attrs={'type': 'date'}),
         }

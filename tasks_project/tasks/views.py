@@ -5,8 +5,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 import json
-from .models import Project, Task, ChatMessage, Incident, TaskUpdate
-from .forms import TaskForm, ProjectForm, ChatMessageForm, IncidentForm, TaskUpdateForm
+from .models import Project, Task, ChatMessage, Incident, TaskUpdate, SubTask
+from .forms import TaskForm, ProjectForm, ChatMessageForm, IncidentForm, TaskUpdateForm, SubTaskForm
 
 def chat_view(request):
     """Chat interface with BMO"""
@@ -216,23 +216,57 @@ class TaskDetailView(DetailView):
     template_name = 'tasks/task_detail.html'
     
     def get_context_data(self, **kwargs):
+        from django.utils import timezone
         context = super().get_context_data(**kwargs)
         context['update_form'] = TaskUpdateForm()
         context['updates'] = self.object.updates.all()
+        context['subtasks'] = self.object.subtasks.all()
+        context['subtask_form'] = SubTaskForm()
+        context['today'] = timezone.now().date()
         return context
 
 class TaskCreateView(CreateView):
     model = Task
     form_class = TaskForm
     template_name = 'tasks/task_form.html'
-    success_url = reverse_lazy('kanban')
+    
+    def get_initial(self):
+        initial = super().get_initial()
+        # Pre-select project if passed in URL
+        project_id = self.request.GET.get('project')
+        if project_id:
+            initial['project'] = project_id
+        return initial
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Remember where we came from for redirect
+        context['return_to_project'] = self.request.GET.get('project')
+        return context
+    
+    def get_success_url(self):
+        # Redirect back to project if we came from there
+        return_to_project = self.request.GET.get('project')
+        if return_to_project:
+            return reverse_lazy('project_detail', kwargs={'pk': return_to_project})
+        return reverse_lazy('kanban')
 
 class TaskUpdateView(UpdateView):
     model = Task
     form_class = TaskForm
     template_name = 'tasks/task_form.html'
     
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Remember where we came from for redirect
+        context['return_to_project'] = self.request.GET.get('return_to_project')
+        return context
+    
     def get_success_url(self):
+        # Check if we should return to project
+        return_to_project = self.request.GET.get('return_to_project')
+        if return_to_project:
+            return reverse_lazy('project_detail', kwargs={'pk': return_to_project})
         return reverse_lazy('task_detail', kwargs={'pk': self.object.pk})
 
 class TaskDeleteView(DeleteView):
@@ -261,6 +295,51 @@ class TaskUpdateCreateView(CreateView):
         context = super().get_context_data(**kwargs)
         context['task'] = self.task
         return context
+
+
+class SubTaskCreateView(CreateView):
+    model = SubTask
+    form_class = SubTaskForm
+    template_name = 'tasks/subtask_form.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        self.parent_task = get_object_or_404(Task, pk=self.kwargs['task_pk'])
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_initial(self):
+        initial = super().get_initial()
+        # Pre-select parent task
+        initial['parent_task'] = self.parent_task
+        return initial
+    
+    def form_valid(self, form):
+        form.instance.parent_task = self.parent_task
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse_lazy('task_detail', kwargs={'pk': self.parent_task.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['parent_task'] = self.parent_task
+        return context
+
+
+class SubTaskUpdateView(UpdateView):
+    model = SubTask
+    form_class = SubTaskForm
+    template_name = 'tasks/subtask_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('task_detail', kwargs={'pk': self.object.parent_task.pk})
+
+
+class SubTaskDeleteView(DeleteView):
+    model = SubTask
+    template_name = 'tasks/subtask_confirm_delete.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('task_detail', kwargs={'pk': self.object.parent_task.pk})
 
 
 # ========== Weekly Report Views ==========

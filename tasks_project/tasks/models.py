@@ -109,6 +109,33 @@ class TaskUpdate(models.Model):
         return f"Update on {self.task.title} - {self.created_at.strftime('%d %b %Y')}"
 
 
+class SubTask(models.Model):
+    """Sub-tasks/checklist items for a parent task"""
+    STATUS_CHOICES = [
+        ('todo', 'To Do'),
+        ('done', 'Done'),
+    ]
+    
+    parent_task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='subtasks')
+    title = models.CharField(max_length=200)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='todo')
+    assigned_to = models.CharField(max_length=100, blank=True, help_text='Person responsible')
+    due_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['status', '-created_at']
+    
+    def __str__(self):
+        return f"{self.title} ({self.get_status_display()})"
+    
+    @property
+    def is_done(self):
+        return self.status == 'done'
+
+
 class Incident(models.Model):
     SEVERITY_CHOICES = [
         (1, 'Low'),

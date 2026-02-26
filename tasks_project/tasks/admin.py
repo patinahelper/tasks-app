@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Project, Task, ChatMessage, Incident, TaskUpdate
+from .models import Project, Task, ChatMessage, Incident, TaskUpdate, SubTask
 
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
@@ -33,6 +33,13 @@ class TaskUpdateAdmin(admin.ModelAdmin):
     def content_preview(self, obj):
         return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
     content_preview.short_description = 'Content'
+
+
+@admin.register(SubTask)
+class SubTaskAdmin(admin.ModelAdmin):
+    list_display = ['title', 'parent_task', 'status', 'assigned_to', 'due_date']
+    list_filter = ['status', 'created_at']
+    search_fields = ['title', 'parent_task__title', 'assigned_to']
 
 
 @admin.register(Incident)
