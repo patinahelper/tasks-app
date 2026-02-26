@@ -123,6 +123,9 @@
                         {% else %}
                         <span class="text-muted">-</span>
                         {% endif %}
+                        {% if task.completed_at %}
+                        <br><small class="text-success"><i class="bi bi-check-circle"></i> {{ task.completed_at|date:"M d, Y" }}</small>
+                        {% endif %}
                     </td>
                     <td>
                         <a href="{% url 'task_update' task.pk %}" class="btn btn-sm btn-outline-primary">

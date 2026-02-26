@@ -72,6 +72,17 @@
                     </div>
                 </div>
 
+                {% if task.completed_at %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Completed</h6>
+                        <p class="text-success">
+                            <i class="bi bi-check-circle-fill"></i> {{ task.completed_at|date:"F d, Y at H:i" }}
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+
                 {% if task.tags %}
                 <hr>
                 <h6>Tags</h6>
