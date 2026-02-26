@@ -5,8 +5,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 import json
-from .models import Project, Task, ChatMessage
-from .forms import TaskForm, ProjectForm, ChatMessageForm
+from .models import Project, Task, ChatMessage, Incident
+from .forms import TaskForm, ProjectForm, ChatMessageForm, IncidentForm
 
 def chat_view(request):
     """Chat interface with BMO"""
@@ -233,3 +233,234 @@ class TaskDeleteView(DeleteView):
     model = Task
     success_url = reverse_lazy('kanban')
     template_name = 'tasks/task_confirm_delete.html'
+
+
+# ========== Weekly Report Views ==========
+
+def weekly_report(request):
+    """Weekly report view for Mohsen"""
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Get date range (default: last 7 days)
+    days = int(request.GET.get('days', 7))
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=days)
+    
+    # Tasks completed this week
+    completed_tasks = Task.objects.filter(
+        completed_at__date__gte=start_date,
+        completed_at__date__lte=end_date
+    ).select_related('project').order_by('project__category', '-completed_at')
+    
+    # Tasks in progress
+    in_progress_tasks = Task.objects.filter(
+        status='in_progress'
+    ).select_related('project').order_by('project__category', '-priority')
+    
+    # Upcoming deadlines (next 7 days)
+    upcoming_tasks = Task.objects.filter(
+        due_date__gte=end_date,
+        due_date__lte=end_date + timedelta(days=7),
+        status__in=['backlog', 'todo', 'in_progress']
+    ).select_related('project').order_by('due_date')
+    
+    # Incidents
+    new_incidents = Incident.objects.filter(
+        date_reported__gte=start_date,
+        date_reported__lte=end_date
+    ).order_by('-severity', '-date_reported')
+    
+    open_incidents = Incident.objects.filter(
+        status__in=['open', 'in_progress']
+    ).order_by('-severity', '-date_reported')
+    
+    # Group by category
+    categories = ['safety', 'operational', 'workshop', 'general']
+    
+    def group_by_category(tasks):
+        grouped = {cat: [] for cat in categories}
+        for task in tasks:
+            cat = task.project.category if task.project else 'general'
+            grouped[cat].append(task)
+        return grouped
+    
+    context = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'days': days,
+        'completed_by_category': group_by_category(completed_tasks),
+        'in_progress_by_category': group_by_category(in_progress_tasks),
+        'upcoming_tasks': upcoming_tasks,
+        'new_incidents': new_incidents,
+        'open_incidents': open_incidents,
+        'category_labels': dict(Project.CATEGORY_CHOICES),
+    }
+    return render(request, 'tasks/weekly_report.html', context)
+
+
+def weekly_report_email(request):
+    """Plain text version for easy email copy/paste"""
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    days = int(request.GET.get('days', 7))
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=days)
+    
+    # Same queries as weekly_report
+    completed_tasks = Task.objects.filter(
+        completed_at__date__gte=start_date,
+        completed_at__date__lte=end_date
+    ).select_related('project').order_by('project__category', '-completed_at')
+    
+    in_progress_tasks = Task.objects.filter(
+        status='in_progress'
+    ).select_related('project').order_by('project__category', '-priority')
+    
+    upcoming_tasks = Task.objects.filter(
+        due_date__gte=end_date,
+        due_date__lte=end_date + timedelta(days=7),
+        status__in=['backlog', 'todo', 'in_progress']
+    ).select_related('project').order_by('due_date')
+    
+    new_incidents = Incident.objects.filter(
+        date_reported__gte=start_date,
+        date_reported__lte=end_date
+    ).order_by('-severity', '-date_reported')
+    
+    open_incidents = Incident.objects.filter(
+        status__in=['open', 'in_progress']
+    ).order_by('-severity', '-date_reported')
+    
+    # Build plain text report
+    lines = [
+        f"WEEKLY REPORT - {start_date.strftime('%d %b')} to {end_date.strftime('%d %b %Y')}",
+        "=" * 50,
+        "",
+    ]
+    
+    category_labels = dict(Project.CATEGORY_CHOICES)
+    categories = ['safety', 'operational', 'workshop', 'general']
+    
+    # Completed tasks
+    lines.append("COMPLETED THIS WEEK")
+    lines.append("-" * 30)
+    for cat in categories:
+        cat_tasks = [t for t in completed_tasks if (t.project.category if t.project else 'general') == cat]
+        if cat_tasks:
+            lines.append(f"\n{category_labels[cat].upper()}")
+            for task in cat_tasks:
+                proj = f" [{task.project.name}]" if task.project else ""
+                lines.append(f"  ✓ {task.title}{proj}")
+    if not completed_tasks:
+        lines.append("  No tasks completed this week.")
+    lines.append("")
+    
+    # In progress
+    lines.append("IN PROGRESS")
+    lines.append("-" * 30)
+    for cat in categories:
+        cat_tasks = [t for t in in_progress_tasks if (t.project.category if t.project else 'general') == cat]
+        if cat_tasks:
+            lines.append(f"\n{category_labels[cat].upper()}")
+            for task in cat_tasks:
+                proj = f" [{task.project.name}]" if task.project else ""
+                lines.append(f"  → {task.title}{proj}")
+    if not in_progress_tasks:
+        lines.append("  No tasks in progress.")
+    lines.append("")
+    
+    # Upcoming deadlines
+    if upcoming_tasks:
+        lines.append("UPCOMING DEADLINES (Next 7 Days)")
+        lines.append("-" * 30)
+        for task in upcoming_tasks:
+            due = task.due_date.strftime('%d %b') if task.due_date else 'No date'
+            proj = f" [{task.project.name}]" if task.project else ""
+            lines.append(f"  • {task.title} (due {due}){proj}")
+        lines.append("")
+    
+    # Incidents
+    if new_incidents or open_incidents:
+        lines.append("HAZARDS & INCIDENTS")
+        lines.append("-" * 30)
+        
+        if new_incidents:
+            lines.append("\nNew this week:")
+            for inc in new_incidents:
+                severity = "HIGH" if inc.severity == 3 else "MED" if inc.severity == 2 else "LOW"
+                lines.append(f"  ⚠ [{severity}] {inc.title}")
+                if inc.action_taken:
+                    lines.append(f"     Action: {inc.action_taken}")
+        
+        open_not_new = [i for i in open_incidents if i not in new_incidents]
+        if open_not_new:
+            lines.append("\nStill open:")
+            for inc in open_not_new:
+                severity = "HIGH" if inc.severity == 3 else "MED" if inc.severity == 2 else "LOW"
+                lines.append(f"  ⚠ [{severity}] {inc.title}")
+                if inc.action_taken:
+                    lines.append(f"     Action: {inc.action_taken}")
+        lines.append("")
+    
+    report_text = "\n".join(lines)
+    
+    return render(request, 'tasks/weekly_report_email.html', {
+        'report_text': report_text,
+        'start_date': start_date,
+        'end_date': end_date,
+    })
+
+
+# ========== Incident Views ==========
+
+class IncidentListView(ListView):
+    model = Incident
+    template_name = 'tasks/incident_list.html'
+    context_object_name = 'incidents'
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        status = self.request.GET.get('status')
+        severity = self.request.GET.get('severity')
+        
+        if status:
+            queryset = queryset.filter(status=status)
+        if severity:
+            queryset = queryset.filter(severity=severity)
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['status_choices'] = Incident.STATUS_CHOICES
+        context['severity_choices'] = Incident.SEVERITY_CHOICES
+        context['open_count'] = Incident.objects.filter(status__in=['open', 'in_progress']).count()
+        return context
+
+
+class IncidentDetailView(DetailView):
+    model = Incident
+    template_name = 'tasks/incident_detail.html'
+
+
+class IncidentCreateView(CreateView):
+    model = Incident
+    form_class = IncidentForm
+    template_name = 'tasks/incident_form.html'
+    success_url = reverse_lazy('incident_list')
+
+
+class IncidentUpdateView(UpdateView):
+    model = Incident
+    form_class = IncidentForm
+    template_name = 'tasks/incident_form.html'
+    success_url = reverse_lazy('incident_list')
+
+
+class IncidentDeleteView(DeleteView):
+    model = Incident
+    success_url = reverse_lazy('incident_list')
+    template_name = 'tasks/incident_confirm_delete.html'

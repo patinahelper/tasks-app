@@ -19,6 +19,17 @@ urlpatterns = [
     path('project/<int:pk>/', views.ProjectDetailView.as_view(), name='project_detail'),
     path('project/<int:pk>/edit/', views.ProjectUpdateView.as_view(), name='project_update'),
     
+    # Weekly Report
+    path('weekly-report/', views.weekly_report, name='weekly_report'),
+    path('weekly-report/email/', views.weekly_report_email, name='weekly_report_email'),
+    
+    # Incidents
+    path('incidents/', views.IncidentListView.as_view(), name='incident_list'),
+    path('incident/new/', views.IncidentCreateView.as_view(), name='incident_create'),
+    path('incident/<int:pk>/', views.IncidentDetailView.as_view(), name='incident_detail'),
+    path('incident/<int:pk>/edit/', views.IncidentUpdateView.as_view(), name='incident_update'),
+    path('incident/<int:pk>/delete/', views.IncidentDeleteView.as_view(), name='incident_delete'),
+    
     # API endpoints
     path('api/tasks/', api.list_tasks, name='api_task_list'),
     path('api/tasks/create/', api.create_task, name='api_task_create'),

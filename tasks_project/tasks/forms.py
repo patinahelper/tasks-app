@@ -1,5 +1,5 @@
 from django import forms
-from .models import Project, Task, ChatMessage
+from .models import Project, Task, ChatMessage, Incident
 
 class ChatMessageForm(forms.ModelForm):
     class Meta:
@@ -16,7 +16,7 @@ class ChatMessageForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ['name', 'description', 'color', 'is_active']
+        fields = ['name', 'description', 'category', 'color', 'is_active']
         widgets = {
             'color': forms.TextInput(attrs={'type': 'color'}),
             'description': forms.Textarea(attrs={'rows': 3}),
@@ -30,4 +30,15 @@ class TaskForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 4}),
             'due_date': forms.DateInput(attrs={'type': 'date'}),
             'tags': forms.TextInput(attrs={'placeholder': 'e.g., urgent, review, lab-design'}),
+        }
+
+
+class IncidentForm(forms.ModelForm):
+    class Meta:
+        model = Incident
+        fields = ['title', 'description', 'severity', 'status', 'action_taken', 'closed_at']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'action_taken': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Actions taken or planned to resolve'}),
+            'closed_at': forms.DateInput(attrs={'type': 'date'}),
         }

@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+
+{% block title %}Weekly Report - Task Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="bi bi-file-text"></i> Weekly Report</h1>
+        <p class="text-muted mb-0">{{ start_date|date:"d M Y" }} - {{ end_date|date:"d M Y" }}</p>
+    </div>
+    <div>
+        <a href="{% url 'weekly_report_email' %}?days={{ days }}" class="btn btn-outline-primary">
+            <i class="bi bi-envelope"></i> Email Format
+        </a>
+    </div>
+</div>
+
+<!-- Date Range Selector -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label class="form-label mb-0">Report Period:</label>
+            </div>
+            <div class="col-auto">
+                <select name="days" class="form-select" onchange="this.form.submit()">
+                    <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+                    <option value="14" {% if days == 14 %}selected{% endif %}>Last 14 days</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Completed Tasks -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> Completed This Week</h5>
+            </div>
+            <div class="card-body">
+                {% regroup completed_by_category.safety by project.category as safety_completed %}
+                {% if completed_by_category.safety %}
+                    <h6 class="text-uppercase text-muted mt-3 mb-2">Safety</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for task in completed_by_category.safety %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-check-lg text-success"></i>
+                                    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                                    {% if task.project %}
+                                        <small class="text-muted">[{{ task.project.name }}]</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-secondary">{{ task.completed_at|date:"d M" }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                
+                {% if completed_by_category.operational %}
+                    <h6 class="text-uppercase text-muted mt-3 mb-2">Operational</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for task in completed_by_category.operational %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-check-lg text-success"></i>
+                                    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                                    {% if task.project %}
+                                        <small class="text-muted">[{{ task.project.name }}]</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-secondary">{{ task.completed_at|date:"d M" }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                
+                {% if completed_by_category.workshop %}
+                    <h6 class="text-uppercase text-muted mt-3 mb-2">Workshop</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for task in completed_by_category.workshop %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-check-lg text-success"></i>
+                                    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                                    {% if task.project %}
+                                        <small class="text-muted">[{{ task.project.name }}]</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-secondary">{{ task.completed_at|date:"d M" }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                
+                {% if completed_by_category.general %}
+                    <h6 class="text-uppercase text-muted mt-3 mb-2">General</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for task in completed_by_category.general %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-check-lg text-success"></i>
+                                    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                                    {% if task.project %}
+                                        <small class="text-muted">[{{ task.project.name }}]</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-secondary">{{ task.completed_at|date:"d M" }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                
+                {% if not completed_by_category.safety and not completed_by_category.operational and not completed_by_category.workshop and not completed_by_category.general %}
+                    <p class="text-muted">No tasks completed this week.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- In Progress Tasks -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-arrow-repeat"></i> In Progress</h5>
+            </div>
+            <div class="card-body">
+                {% if in_progress_by_category.safety %}
+                    <h6 class="text-uppercase text-muted mt-3 mb-2">Safety</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for task in in_progress_by_category.safety %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-arrow-right text-info"></i>
+                                    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                                    {% if task.project %}
+                                        <small class="text-muted">[{{ task.project.name }}]</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge priority-badge bg-{{ task.priority_class }}">{{ task.priority_label }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                
+                {% if in_progress_by_category.operational %}
+                    <h6 class="text-uppercase text-muted mt-3 mb-2">Operational</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for task in in_progress_by_category.operational %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-arrow-right text-info"></i>
+                                    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                                    {% if task.project %}
+                                        <small class="text-muted">[{{ task.project.name }}]</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge priority-badge bg-{{ task.priority_class }}">{{ task.priority_label }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                
+                {% if in_progress_by_category.workshop %}
+                    <h6 class="text-uppercase text-muted mt-3 mb-2">Workshop</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for task in in_progress_by_category.workshop %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-arrow-right text-info"></i>
+                                    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                                    {% if task.project %}
+                                        <small class="text-muted">[{{ task.project.name }}]</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge priority-badge bg-{{ task.priority_class }}">{{ task.priority_label }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                
+                {% if in_progress_by_category.general %}
+                    <h6 class="text-uppercase text-muted mt-3 mb-2">General</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for task in in_progress_by_category.general %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-arrow-right text-info"></i>
+                                    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                                    {% if task.project %}
+                                        <small class="text-muted">[{{ task.project.name }}]</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge priority-badge bg-{{ task.priority_class }}">{{ task.priority_label }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                
+                {% if not in_progress_by_category.safety and not in_progress_by_category.operational and not in_progress_by_category.workshop and not in_progress_by_category.general %}
+                    <p class="text-muted">No tasks in progress.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upcoming Deadlines -->
+{% if upcoming_tasks %}
+<div class="card mb-4">
+    <div class="card-header bg-warning">
+        <h5 class="mb-0"><i class="bi bi-calendar-event"></i> Upcoming Deadlines (Next 7 Days)</h5>
+    </div>
+    <div class="card-body">
+        <ul class="list-group list-group-flush">
+            {% for task in upcoming_tasks %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-clock text-warning"></i>
+                        <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+                        {% if task.project %}
+                            <small class="text-muted">[{{ task.project.name }}]</small>
+                        {% endif %}
+                    </div>
+                    <span class="badge bg-warning text-dark">Due {{ task.due_date|date:"d M" }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<!-- Incidents -->
+{% if new_incidents or open_incidents %}
+<div class="card mb-4">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Hazards & Incidents</h5>
+    </div>
+    <div class="card-body">
+        {% if new_incidents %}
+            <h6 class="text-muted mb-2">New This Week</h6>
+            <ul class="list-group list-group-flush mb-3">
+                {% for incident in new_incidents %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge bg-{{ incident.severity_class }} me-2">{{ incident.get_severity_display|upper }}</span>
+                                <a href="{% url 'incident_detail' incident.pk %}"><strong>{{ incident.title }}</strong></a>
+                            </div>
+                            <small class="text-muted">{{ incident.date_reported|date:"d M" }}</small>
+                        </div>
+                        {% if incident.action_taken %}
+                            <small class="text-muted d-block mt-1"><strong>Action:</strong> {{ incident.action_taken }}</small>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        
+        {% if open_incidents %}
+            <h6 class="text-muted mb-2">Open Incidents</h6>
+            <ul class="list-group list-group-flush">
+                {% for incident in open_incidents %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge bg-{{ incident.severity_class }} me-2">{{ incident.get_severity_display|upper }}</span>
+                                <a href="{% url 'incident_detail' incident.pk %}">{{ incident.title }}</a>
+                            </div>
+                            <small class="text-muted">{{ incident.date_reported|date:"d M" }}</small>
+                        </div>
+                        {% if incident.action_taken %}
+                            <small class="text-muted d-block mt-1"><strong>Action:</strong> {{ incident.action_taken }}</small>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
