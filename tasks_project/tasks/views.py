@@ -609,7 +609,7 @@ def weekly_report_word(request):
     doc.add_paragraph()
     footer = doc.add_paragraph()
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = footer.add_run(f'Generated {timezone.now().strftime("%d %b %Y at %H:%M")}')
+    run = footer.add_run(f'Generated {timezone.localtime(timezone.now()).strftime("%d %b %Y at %H:%M")}')
     run.font.size = Pt(9)
     run.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
     
