@@ -94,6 +94,16 @@ class Task(models.Model):
     @property
     def priority_label(self):
         return dict(self.PRIORITY_CHOICES).get(self.priority, 'Medium')
+    
+    def save(self, *args, **kwargs):
+        # Auto-set completed_at when status changes to done
+        if self.status == 'done' and not self.completed_at:
+            from django.utils import timezone
+            self.completed_at = timezone.now()
+        # Clear completed_at if status is changed from done
+        elif self.status != 'done' and self.completed_at:
+            self.completed_at = None
+        super().save(*args, **kwargs)
 
 
 class TaskUpdate(models.Model):
@@ -134,6 +144,16 @@ class SubTask(models.Model):
     @property
     def is_done(self):
         return self.status == 'done'
+    
+    def save(self, *args, **kwargs):
+        # Auto-set completed_at when status changes to done
+        if self.status == 'done' and not self.completed_at:
+            from django.utils import timezone
+            self.completed_at = timezone.now()
+        # Clear completed_at if status is changed from done
+        elif self.status != 'done' and self.completed_at:
+            self.completed_at = None
+        super().save(*args, **kwargs)
 
 
 class Incident(models.Model):
