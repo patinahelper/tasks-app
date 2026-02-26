@@ -413,6 +413,186 @@ def weekly_report_email(request):
     })
 
 
+def weekly_report_word(request):
+    """Generate Word document for weekly report"""
+    from django.utils import timezone
+    from datetime import timedelta
+    from docx import Document
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from django.http import HttpResponse
+    import io
+    
+    days = int(request.GET.get('days', 7))
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=days)
+    
+    # Get data
+    completed_tasks = Task.objects.filter(
+        completed_at__date__gte=start_date,
+        completed_at__date__lte=end_date
+    ).select_related('project').order_by('project__category', '-completed_at')
+    
+    in_progress_tasks = Task.objects.filter(
+        status='in_progress'
+    ).select_related('project').order_by('project__category', '-priority')
+    
+    upcoming_tasks = Task.objects.filter(
+        due_date__gte=end_date,
+        due_date__lte=end_date + timedelta(days=7),
+        status__in=['backlog', 'todo', 'in_progress']
+    ).select_related('project').order_by('due_date')
+    
+    new_incidents = Incident.objects.filter(
+        date_reported__gte=start_date,
+        date_reported__lte=end_date
+    ).order_by('-severity', '-date_reported')
+    
+    open_incidents = Incident.objects.filter(
+        status__in=['open', 'in_progress']
+    ).order_by('-severity', '-date_reported')
+    
+    # Create document
+    doc = Document()
+    
+    # Set up styles
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
+    
+    # Title
+    title = doc.add_heading('Weekly Activity Report', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Subtitle with name and date
+    subtitle = doc.add_paragraph()
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = subtitle.add_run(f'Mitch Alexander - Laboratory Facilitator\n')
+    run.font.size = Pt(12)
+    run.font.bold = True
+    run = subtitle.add_run(f'{start_date.strftime("%d %B %Y")} - {end_date.strftime("%d %B %Y")}')
+    run.font.size = Pt(11)
+    run.font.italic = True
+    
+    doc.add_paragraph()
+    
+    # Helper function to add category section
+    category_labels = dict(Project.CATEGORY_CHOICES)
+    categories = ['safety', 'operational', 'workshop', 'general']
+    
+    def add_category_section(doc, heading, tasks, show_project=True):
+        doc.add_heading(heading, level=1)
+        
+        has_content = False
+        for cat in categories:
+            cat_tasks = [t for t in tasks if (t.project.category if t.project else 'general') == cat]
+            if cat_tasks:
+                has_content = True
+                # Category subheading
+                p = doc.add_paragraph()
+                run = p.add_run(category_labels[cat])
+                run.font.bold = True
+                run.font.size = Pt(12)
+                run.font.color.rgb = RGBColor(0x00, 0x00, 0x80)  # Navy blue
+                
+                # Task list
+                for task in cat_tasks:
+                    p = doc.add_paragraph(style='List Bullet')
+                    task_text = task.title
+                    if show_project and task.project:
+                        task_text += f' [{task.project.name}]'
+                    p.add_run(task_text)
+                    
+                    # Add priority note for in-progress tasks
+                    if hasattr(task, 'priority_label') and heading == 'Tasks In Progress':
+                        p.add_run(f' - Priority: {task.priority_label}').font.italic = True
+        
+        if not has_content:
+            doc.add_paragraph('No items to report.', style='List Bullet')
+        
+        doc.add_paragraph()
+    
+    # Completed tasks
+    add_category_section(doc, 'Completed This Week', completed_tasks)
+    
+    # In Progress tasks
+    add_category_section(doc, 'Tasks In Progress', in_progress_tasks)
+    
+    # Upcoming deadlines
+    if upcoming_tasks:
+        doc.add_heading('Upcoming Deadlines (Next 7 Days)', level=1)
+        for task in upcoming_tasks:
+            p = doc.add_paragraph(style='List Bullet')
+            due_text = f'{task.title} (Due: {task.due_date.strftime("%d %b")})'
+            if task.project:
+                due_text += f' [{task.project.name}]'
+            p.add_run(due_text)
+        doc.add_paragraph()
+    
+    # Incidents
+    if new_incidents or open_incidents:
+        doc.add_heading('Hazards and Incidents', level=1)
+        
+        if new_incidents:
+            p = doc.add_paragraph()
+            run = p.add_run('New This Week')
+            run.font.bold = True
+            run.font.size = Pt(11)
+            
+            for inc in new_incidents:
+                p = doc.add_paragraph(style='List Bullet')
+                severity_text = 'HIGH' if inc.severity == 3 else 'MED' if inc.severity == 2 else 'LOW'
+                run = p.add_run(f'[{severity_text}] ')
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0xC0, 0x00, 0x00) if inc.severity == 3 else RGBColor(0xFF, 0x80, 0x00) if inc.severity == 2 else RGBColor(0x00, 0x80, 0x00)
+                p.add_run(f'{inc.title}')
+                if inc.action_taken:
+                    action_p = doc.add_paragraph(style='List Bullet 2')
+                    action_p.add_run(f'Action taken: {inc.action_taken}').font.italic = True
+        
+        open_not_new = [i for i in open_incidents if i not in new_incidents]
+        if open_not_new:
+            p = doc.add_paragraph()
+            run = p.add_run('Still Open')
+            run.font.bold = True
+            run.font.size = Pt(11)
+            
+            for inc in open_not_new:
+                p = doc.add_paragraph(style='List Bullet')
+                severity_text = 'HIGH' if inc.severity == 3 else 'MED' if inc.severity == 2 else 'LOW'
+                run = p.add_run(f'[{severity_text}] ')
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0xC0, 0x00, 0x00) if inc.severity == 3 else RGBColor(0xFF, 0x80, 0x00) if inc.severity == 2 else RGBColor(0x00, 0x80, 0x00)
+                p.add_run(f'{inc.title}')
+                if inc.action_taken:
+                    action_p = doc.add_paragraph(style='List Bullet 2')
+                    action_p.add_run(f'Action taken: {inc.action_taken}').font.italic = True
+        
+        doc.add_paragraph()
+    
+    # Footer
+    doc.add_paragraph()
+    footer = doc.add_paragraph()
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = footer.add_run(f'Generated {timezone.now().strftime("%d %b %Y at %H:%M")}')
+    run.font.size = Pt(9)
+    run.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
+    
+    # Save to response
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    response = HttpResponse(
+        buffer.read(),
+        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+    response['Content-Disposition'] = f'attachment; filename="Weekly_Report_{end_date.strftime("%Y%m%d")}.docx"'
+    
+    return response
+
+
 # ========== Incident Views ==========
 
 class IncidentListView(ListView):

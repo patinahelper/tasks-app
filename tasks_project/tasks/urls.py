@@ -22,6 +22,7 @@ urlpatterns = [
     # Weekly Report
     path('weekly-report/', views.weekly_report, name='weekly_report'),
     path('weekly-report/email/', views.weekly_report_email, name='weekly_report_email'),
+    path('weekly-report/download/', views.weekly_report_word, name='weekly_report_word'),
     
     # Incidents
     path('incidents/', views.IncidentListView.as_view(), name='incident_list'),
