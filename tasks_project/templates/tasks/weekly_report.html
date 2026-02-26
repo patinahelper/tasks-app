@@ -9,10 +9,10 @@
         <p class="text-muted mb-0">{{ start_date|date:"d M Y" }} - {{ end_date|date:"d M Y" }}</p>
     </div>
     <div>
-        <a href="{% url 'weekly_report_email' %}?days={{ days }}" class="btn btn-outline-primary">
+        <a href="{% url 'weekly_report_email' %}?period={{ period }}" class="btn btn-outline-primary">
             <i class="bi bi-envelope"></i> Email Format
         </a>
-        <a href="{% url 'weekly_report_word' %}?days={{ days }}" class="btn btn-success">
+        <a href="{% url 'weekly_report_word' %}?period={{ period }}" class="btn btn-success">
             <i class="bi bi-file-earmark-word"></i> Download Word Doc
         </a>
     </div>
@@ -26,10 +26,11 @@
                 <label class="form-label mb-0">Report Period:</label>
             </div>
             <div class="col-auto">
-                <select name="days" class="form-select" onchange="this.form.submit()">
-                    <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
-                    <option value="14" {% if days == 14 %}selected{% endif %}>Last 14 days</option>
-                    <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                <select name="period" class="form-select" onchange="this.form.submit()">
+                    <option value="last_week" {% if period == 'last_week' %}selected{% endif %}>Last Week (Mon-Sun)</option>
+                    <option value="7" {% if period == '7' or not period %}selected{% endif %}>Last 7 days</option>
+                    <option value="14" {% if period == '14' %}selected{% endif %}>Last 14 days</option>
+                    <option value="30" {% if period == '30' %}selected{% endif %}>Last 30 days</option>
                 </select>
             </div>
         </form>

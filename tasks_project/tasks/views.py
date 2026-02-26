@@ -242,10 +242,23 @@ def weekly_report(request):
     from django.utils import timezone
     from datetime import timedelta
     
-    # Get date range (default: last 7 days)
-    days = int(request.GET.get('days', 7))
-    end_date = timezone.now().date()
-    start_date = end_date - timedelta(days=days)
+    # Get date range
+    period = request.GET.get('period', '7')
+    
+    if period == 'last_week':
+        # Last week: Monday to Sunday of previous week
+        today = timezone.now().date()
+        # Find last Monday (today.weekday() gives 0=Monday, so we go back 7 + weekday days)
+        days_since_monday = today.weekday()
+        last_sunday = today - timedelta(days=days_since_monday + 1)
+        last_monday = last_sunday - timedelta(days=6)
+        start_date = last_monday
+        end_date = last_sunday
+        days = 'last_week'
+    else:
+        days = int(period)
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=days)
     
     # Tasks completed this week
     completed_tasks = Task.objects.filter(
@@ -289,6 +302,7 @@ def weekly_report(request):
         'start_date': start_date,
         'end_date': end_date,
         'days': days,
+        'period': period,
         'completed_by_category': group_by_category(completed_tasks),
         'in_progress_by_category': group_by_category(in_progress_tasks),
         'upcoming_tasks': upcoming_tasks,
@@ -304,9 +318,19 @@ def weekly_report_email(request):
     from django.utils import timezone
     from datetime import timedelta
     
-    days = int(request.GET.get('days', 7))
-    end_date = timezone.now().date()
-    start_date = end_date - timedelta(days=days)
+    period = request.GET.get('period', '7')
+    
+    if period == 'last_week':
+        today = timezone.now().date()
+        days_since_monday = today.weekday()
+        last_sunday = today - timedelta(days=days_since_monday + 1)
+        last_monday = last_sunday - timedelta(days=6)
+        start_date = last_monday
+        end_date = last_sunday
+    else:
+        days = int(period)
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=days)
     
     # Same queries as weekly_report
     completed_tasks = Task.objects.filter(
@@ -423,9 +447,19 @@ def weekly_report_word(request):
     from django.http import HttpResponse
     import io
     
-    days = int(request.GET.get('days', 7))
-    end_date = timezone.now().date()
-    start_date = end_date - timedelta(days=days)
+    period = request.GET.get('period', '7')
+    
+    if period == 'last_week':
+        today = timezone.now().date()
+        days_since_monday = today.weekday()
+        last_sunday = today - timedelta(days=days_since_monday + 1)
+        last_monday = last_sunday - timedelta(days=6)
+        start_date = last_monday
+        end_date = last_sunday
+    else:
+        days = int(period)
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=days)
     
     # Get data
     completed_tasks = Task.objects.filter(
