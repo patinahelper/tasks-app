@@ -351,6 +351,7 @@ def weekly_report(request):
     
     # Get date range
     period = request.GET.get('period', '7')
+    debug = request.GET.get('debug') == '1'
     
     if period == 'last_week':
         # Last week: Monday to Sunday of previous week
@@ -369,7 +370,6 @@ def weekly_report(request):
     
     # Tasks completed this week
     # Use timezone-aware datetime comparison instead of just date
-    from django.utils import timezone
     start_datetime = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
     end_datetime = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time()))
     
@@ -377,6 +377,20 @@ def weekly_report(request):
         completed_at__gte=start_datetime,
         completed_at__lte=end_datetime
     ).select_related('project').order_by('project__category', '-completed_at')
+    
+    # Debug info
+    debug_info = None
+    if debug:
+        all_done = Task.objects.filter(status='done')
+        debug_info = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'start_datetime': start_datetime,
+            'end_datetime': end_datetime,
+            'completed_count': completed_tasks.count(),
+            'all_done_count': all_done.count(),
+            'all_done_tasks': [(t.title, t.completed_at) for t in all_done[:5]],
+        }
     
     # Tasks in progress
     in_progress_tasks = Task.objects.filter(
@@ -421,6 +435,7 @@ def weekly_report(request):
         'new_incidents': new_incidents,
         'open_incidents': open_incidents,
         'category_labels': dict(Project.CATEGORY_CHOICES),
+        'debug_info': debug_info,
     }
     return render(request, 'tasks/weekly_report.html', context)
 

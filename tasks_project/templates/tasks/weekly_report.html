@@ -33,9 +33,32 @@
                     <option value="30" {% if period == '30' %}selected{% endif %}>Last 30 days</option>
                 </select>
             </div>
+            <div class="col-auto">
+                <a href="?period={{ period }}&debug=1" class="btn btn-outline-warning btn-sm">Debug</a>
+            </div>
         </form>
     </div>
 </div>
+
+{% if debug_info %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0">Debug Info</h5>
+    </div>
+    <div class="card-body">
+        <p><strong>Date Range:</strong> {{ debug_info.start_date }} to {{ debug_info.end_date }}</p>
+        <p><strong>DateTime Range:</strong> {{ debug_info.start_datetime }} to {{ debug_info.end_datetime }}</p>
+        <p><strong>Completed in Range:</strong> {{ debug_info.completed_count }}</p>
+        <p><strong>Total Done Tasks:</strong> {{ debug_info.all_done_count }}</p>
+        <p><strong>Sample Done Tasks:</strong></p>
+        <ul>
+            {% for title, completed_at in debug_info.all_done_tasks %}
+            <li>{{ title }}: {{ completed_at }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
 
 <div class="row">
     <!-- Completed Tasks -->
